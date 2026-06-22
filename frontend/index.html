@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Оценка эмоциональной насыщенности текста</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --panel-2: #f3f7fc;
+      --line: #d9e6f7;
+      --text: #12304a;
+      --muted: #6b7f95;
+      --blue: #2f7df6;
+      --blue-dark: #1e64d6;
+      --blue-soft: #e8f1ff;
+      --shadow: 0 12px 40px rgba(24, 55, 99, 0.08);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 28px 18px 36px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .brand p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      max-width: 780px;
+    }
+
+    .badge {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      border: 1px solid #d7e6ff;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      padding: 18px 20px 0;
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .card-subtitle {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .card-body {
+      padding: 18px 20px 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 360px;
+      resize: none;
+      flex: 1;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      color: var(--text);
+      padding: 16px 16px 14px;
+      font-size: 15px;
+      line-height: 1.6;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    textarea:focus {
+      border-color: #9cc3ff;
+      box-shadow: 0 0 0 4px rgba(47, 125, 246, 0.10);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      align-items: center;
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, var(--blue) 0%, var(--blue-dark) 100%);
+      color: white;
+      box-shadow: 0 10px 24px rgba(47, 125, 246, 0.24);
+    }
+
+    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn-secondary:hover { background: #eaf1fb; }
+
+    .demo-picker {
+      position: relative;
+      display: inline-block;
+    }
+
+    .demo-menu {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 0;
+      min-width: 190px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 8px;
+      z-index: 20;
+    }
+
+    .demo-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .demo-item:hover {
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+    }
+
+    .helper {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-panel {
+      padding: 18px 20px 20px;
+      display: grid;
+      gap: 14px;
+      flex: 1;
+    }
+
+    .emoji-box {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .emoji-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      justify-content: space-between;
+    }
+
+    .emoji {
+      font-size: 46px;
+      line-height: 1;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .score-wrap {
+      flex: 1;
+    }
+
+    .score-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .score-value {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .score-desc {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .meter {
+      margin-top: 14px;
+      height: 12px;
+      background: #edf3fb;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .meter > div {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: #d9e6f7;
+      transform-origin: left center;
+      transition: width 0.25s ease;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .stat .value {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .stat .meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .chart-card {
+      padding: 18px 20px 20px;
+    }
+
+    .chart-box {
+      height: 280px;
+      margin-top: 14px;
+    }
+
+    .chart-box.tall {
+      height: 330px;
+    }
+
+    .keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .chip {
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+      border: 1px solid #d9e7ff;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .hidden { display: none !important; }
+
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .topbar { flex-direction: column; align-items: flex-start; }
+      .badge { white-space: normal; }
+      .helper { margin-left: 0; width: 100%; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .emoji-row { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Оценка эмоциональной насыщенности текста</h1>
+        <p>
+          Вводите текст вручную или вставляйте пример. Нажатие кнопки отправляет текст на локальный backend FastAPI,
+          который возвращает готовую статистику и метрики.
+        </p>
+      </div>
+      <div class="badge">Frontend + FastAPI</div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Текст для анализа</h2>
+          <p class="card-subtitle">
+            Введите текст. Кнопка анализа станет доступной, когда текста достаточно.
+          </p>
+        </div>
+        <div class="card-body">
+          <textarea id="textInput" placeholder="Вставьте или напишите текст здесь..."></textarea>
+          <div class="toolbar">
+            <button id="analyzeBtn" class="btn btn-primary" disabled>Анализировать</button>
+            <div class="demo-picker" id="demoPickerWrap">
+              <button id="demoBtn" class="btn btn-secondary" type="button">Вставить пример</button>
+              <div id="demoMenu" class="demo-menu hidden">
+                <button class="demo-item" data-demo="veryPositive" type="button">Очень добрый</button>
+                <button class="demo-item" data-demo="positive" type="button">Добрый</button>
+                <button class="demo-item" data-demo="neutral" type="button">Нейтральный</button>
+                <button class="demo-item" data-demo="negative" type="button">Злой</button>
+                <button class="demo-item" data-demo="veryNegative" type="button">Очень злой</button>
+              </div>
+            </div>
+            <button id="clearBtn" class="btn btn-secondary" type="button">Очистить</button>
+            <div class="helper" id="helperText">Минимум: 20 символов и 3 слова</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Быстрый результат</h2>
+          <p class="card-subtitle">Итоговая оценка, метрики и ключевые слова по тексту.</p>
+        </div>
+        <div class="status-panel">
+          <div class="emoji-box">
+            <div class="emoji-row">
+              <div class="emoji" id="emojiFace">🙂</div>
+              <div class="score-wrap">
+                <div class="score-label">Итоговая оценка</div>
+                <div class="score-value" id="scoreText">0</div>
+                <div class="score-desc" id="scoreDesc">Ожидается текст для анализа.</div>
+              </div>
+            </div>
+            <div class="meter"><div id="meterFill"></div></div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat">
+              <div class="label">Тональность</div>
+              <div class="value" id="toneLabel">—</div>
+              <div class="meta">основной эмоциональный вектор</div>
+            </div>
+            <div class="stat">
+              <div class="label">Слов</div>
+              <div class="value" id="wordCount">0</div>
+              <div class="meta">общее число токенов</div>
+            </div>
+            <div class="stat">
+              <div class="label">Позитивных</div>
+              <div class="value" id="posCount">0</div>
+              <div class="meta">эмоционально светлые слова</div>
+            </div>
+            <div class="stat">
+              <div class="label">Негативных</div>
+              <div class="value" id="negCount">0</div>
+              <div class="meta">эмоционально тяжёлые слова</div>
+            </div>
+          </div>
+
+          <div class="keywords" id="keywords"></div>
+        </div>
+      </section>
+    </div>
+
+    <div id="resultsArea" class="card charts hidden" style="margin-top:16px;">
+      <div class="card-header">
+        <h2 class="card-title">Статистика и графики</h2>
+        <p class="card-subtitle">Все значения приходят из backend и визуализируются на странице.</p>
+      </div>
+      <div class="card-body">
+        <div class="stats-grid" style="margin-bottom:12px;">
+          <div class="stat">
+            <div class="label">Эмоциональная насыщенность</div>
+            <div class="value" id="intensityValue">0%</div>
+            <div class="meta">сила эмоционального сигнала</div>
+          </div>
+          <div class="stat">
+            <div class="label">Субъективность</div>
+            <div class="value" id="subjectivityValue">0%</div>
+            <div class="meta">доля оценочной лексики</div>
+          </div>
+          <div class="stat">
+            <div class="label">Индекс уверенности</div>
+            <div class="value" id="confidenceValue">0%</div>
+            <div class="meta">стабильность интерпретации</div>
+          </div>
+          <div class="stat">
+            <div class="label">Полярность</div>
+            <div class="value" id="polarityValue">0</div>
+            <div class="meta">от -1 до +1</div>
+          </div>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom:16px;">
+          <div class="stat">
+            <div class="label">Лексическая плотность</div>
+            <div class="value" id="lexicalDensityValue">0%</div>
+            <div class="meta">доля смысловых слов</div>
+          </div>
+          <div class="stat">
+            <div class="label">Негативные маркеры</div>
+            <div class="value" id="negationValue">0%</div>
+            <div class="meta">частота отрицаний и инверсий</div>
+          </div>
+          <div class="stat">
+            <div class="label">Пунктуационное давление</div>
+            <div class="value" id="punctuationValue">0%</div>
+            <div class="meta">влияние ! и ? на тон</div>
+          </div>
+          <div class="stat">
+            <div class="label">Эмоциональная асимметрия</div>
+            <div class="value" id="contrastValue">0%</div>
+            <div class="meta">насколько тон односторонний</div>
+          </div>
+        </div>
+
+        <div class="charts">
+          <div class="card chart-card" style="box-shadow:none;">
+            <h3 class="card-title" style="font-size:16px; margin:0;">Распределение эмоций</h3>
+            <div class="chart-box"><canvas id="emotionChart"></canvas></div>
+          </div>
+          <div class="card chart-card" style="box-shadow:none;">
+            <h3 class="card-title" style="font-size:16px; margin:0;">Профиль текста по шкале эмоций</h3>
+            <div class="chart-box"><canvas id="profileChart"></canvas></div>
+          </div>
+          <div class="card chart-card" style="box-shadow:none;">
+            <h3 class="card-title" style="font-size:16px; margin:0;">Пятифакторный профиль текста</h3>
+            <div class="chart-box tall"><canvas id="radarChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          Backend должен отвечать на <code>POST http://127.0.0.1:8000/analyze</code> и возвращать JSON с полями
+          <code>tone</code>, <code>emoji</code>, <code>description</code>, <code>score</code>, <code>rawPolarity</code>,
+          <code>wordCount</code>, <code>pos</code>, <code>neg</code>, <code>intensity</code>, <code>subjectivity</code>,
+          <code>confidence</code>, <code>lexicalDensity</code>, <code>negationShare</code>, <code>punctuationPressure</code>,
+          <code>emotionalContrast</code>, <code>keywords</code>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const textInput = document.getElementById('textInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const demoBtn = document.getElementById('demoBtn');
+    const demoMenu = document.getElementById('demoMenu');
+    const resultsArea = document.getElementById('resultsArea');
+
+    const emojiFace = document.getElementById('emojiFace');
+    const scoreText = document.getElementById('scoreText');
+    const scoreDesc = document.getElementById('scoreDesc');
+    const meterFill = document.getElementById('meterFill');
+    const toneLabel = document.getElementById('toneLabel');
+    const wordCountEl = document.getElementById('wordCount');
+    const posCountEl = document.getElementById('posCount');
+    const negCountEl = document.getElementById('negCount');
+    const keywordsEl = document.getElementById('keywords');
+    const intensityValue = document.getElementById('intensityValue');
+    const subjectivityValue = document.getElementById('subjectivityValue');
+    const confidenceValue = document.getElementById('confidenceValue');
+    const polarityValue = document.getElementById('polarityValue');
+    const lexicalDensityValue = document.getElementById('lexicalDensityValue');
+    const negationValue = document.getElementById('negationValue');
+    const punctuationValue = document.getElementById('punctuationValue');
+    const contrastValue = document.getElementById('contrastValue');
+
+    let emotionChart = null;
+    let profileChart = null;
+    let radarChart = null;
+
+    const MIN_CHARS = 20;
+    const MIN_WORDS = 3;
+
+    const demoTexts = {
+      veryPositive: `Сегодня у меня по-настоящему отличное настроение. Всё складывается очень хорошо: команда поддерживает, результат радует, а работа приносит спокойную уверенность и приятное вдохновение.`,
+      positive: `Проект получился хорошим и полезным. Есть ощущение прогресса, результаты выглядят достойно, а дальнейшие шаги понятны и немного воодушевляют.`,
+      neutral: `Сегодня обычный день. Работа идёт по плану, без сильных эмоций и резких изменений. Есть задачи, которые нужно спокойно решить, но спешки нет.`,
+      negative: `Ситуация вызывает раздражение и заметное напряжение. Появились проблемы, сроки сдвинулись, а результат пока разочаровывает и выглядит скорее неудачно.`,
+      veryNegative: `Всё идёт ужасно. Возникают серьёзные проблемы, ситуация очень злит и сильно расстраивает, а итог выглядит крайне неприятно и тяжело.`
+    };
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function tokenize(text) {
+      return text
+        .toLowerCase()
+        .replace(/https?:\/\/\S+/g, ' ')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/[^\p{L}\p{N}\s!?.,:;—-]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    }
+
+    function toggleAnalyzeButton() {
+      const text = textInput.value.trim();
+      const words = tokenize(text).length;
+      analyzeBtn.disabled = !(text.length >= MIN_CHARS && words >= MIN_WORDS);
+    }
+
+    function resetUI() {
+      emojiFace.textContent = '🙂';
+      scoreText.textContent = '0';
+      scoreDesc.textContent = 'Ожидается текст для анализа.';
+      meterFill.style.width = '0%';
+      meterFill.style.background = '#d9e6f7';
+      toneLabel.textContent = '—';
+      wordCountEl.textContent = '0';
+      posCountEl.textContent = '0';
+      negCountEl.textContent = '0';
+      intensityValue.textContent = '0%';
+      subjectivityValue.textContent = '0%';
+      confidenceValue.textContent = '0%';
+      polarityValue.textContent = '0';
+      lexicalDensityValue.textContent = '0%';
+      negationValue.textContent = '0%';
+      punctuationValue.textContent = '0%';
+      contrastValue.textContent = '0%';
+      keywordsEl.innerHTML = '';
+      resultsArea.classList.add('hidden');
+      if (emotionChart) emotionChart.destroy();
+      if (profileChart) profileChart.destroy();
+      if (radarChart) radarChart.destroy();
+      emotionChart = null;
+      profileChart = null;
+      radarChart = null;
+    }
+
+    function applyMeterColor(rawPolarity) {
+      if (rawPolarity <= -0.65) return '#ef4444';
+      if (rawPolarity < -0.25) return '#f59e0b';
+      if (rawPolarity <= 0.25) return '#2f7df6';
+      if (rawPolarity < 0.65) return '#86efac';
+      return '#16a34a';
+    }
+
+    function buildCharts(result) {
+      const emotionCtx = document.getElementById('emotionChart');
+      const profileCtx = document.getElementById('profileChart');
+      const radarCtx = document.getElementById('radarChart');
+
+      if (emotionChart) emotionChart.destroy();
+      if (profileChart) profileChart.destroy();
+      if (radarChart) radarChart.destroy();
+
+      emotionChart = new Chart(emotionCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Очень злой', 'Злой', 'Нейтральный', 'Добрый', 'Очень добрый'],
+          datasets: [{
+            label: 'Вероятность',
+            data: [
+              clamp((1 - result.rawPolarity) * 40, 0, 100),
+              clamp((0.5 - result.rawPolarity) * 45, 0, 100),
+              clamp(100 - Math.abs(result.rawPolarity) * 110, 0, 100),
+              clamp((0.5 + result.rawPolarity) * 45, 0, 100),
+              clamp((1 + result.rawPolarity) * 40, 0, 100)
+            ],
+            borderRadius: 10,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, max: 100, grid: { color: '#edf2f8' }, ticks: { color: '#6b7f95' } },
+            x: { grid: { display: false }, ticks: { color: '#6b7f95' } }
+          }
+        }
+      });
+
+      profileChart = new Chart(profileCtx, {
+        type: 'line',
+        data: {
+          labels: ['Очень злой', 'Злой', 'Нейтральный', 'Добрый', 'Очень добрый'],
+          datasets: [{
+            label: 'Эмоциональный профиль',
+            data: [
+              clamp(result.neg * 24 + (result.intensity * 0.35), 0, 100),
+              clamp(result.neg * 14 + (result.intensity * 0.25), 0, 100),
+              clamp(100 - Math.abs(result.rawPolarity) * 70, 0, 100),
+              clamp(result.pos * 14 + (result.intensity * 0.25), 0, 100),
+              clamp(result.pos * 24 + (result.intensity * 0.35), 0, 100)
+            ],
+            tension: 0.35,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            borderWidth: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, max: 100, grid: { color: '#edf2f8' }, ticks: { color: '#6b7f95' } },
+            x: { grid: { display: false }, ticks: { color: '#6b7f95' } }
+          }
+        }
+      });
+
+      radarChart = new Chart(radarCtx, {
+        type: 'radar',
+        data: {
+          labels: ['Сила полярности', 'Интенсивность', 'Субъективность', 'Лексическая плотность', 'Уверенность'],
+          datasets: [{
+            label: 'Пятифакторный профиль',
+            data: [
+              clamp(Math.abs(result.rawPolarity) * 100, 0, 100),
+              clamp(result.intensity, 0, 100),
+              clamp(result.subjectivity, 0, 100),
+              clamp(result.lexicalDensity, 0, 100),
+              clamp(result.confidence, 0, 100)
+            ],
+            fill: true,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            r: {
+              beginAtZero: true,
+              max: 100,
+              angleLines: { color: '#e6eef8' },
+              grid: { color: '#e6eef8' },
+              pointLabels: { color: '#6b7f95', font: { size: 11, weight: '600' } },
+              ticks: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    function updateFromResult(result) {
+      emojiFace.textContent = result.emoji ?? '🙂';
+      scoreText.textContent = `${result.score ?? 0}`;
+      scoreDesc.textContent = result.description ?? 'Готово.';
+      toneLabel.textContent = result.tone ?? '—';
+      wordCountEl.textContent = result.wordCount ?? 0;
+      posCountEl.textContent = result.pos ?? 0;
+      negCountEl.textContent = result.neg ?? 0;
+
+      intensityValue.textContent = `${result.intensity ?? 0}%`;
+      subjectivityValue.textContent = `${result.subjectivity ?? 0}%`;
+      confidenceValue.textContent = `${result.confidence ?? 0}%`;
+      polarityValue.textContent = Number(result.rawPolarity ?? 0).toFixed(2);
+      lexicalDensityValue.textContent = `${result.lexicalDensity ?? 0}%`;
+      negationValue.textContent = `${result.negationShare ?? 0}%`;
+      punctuationValue.textContent = `${result.punctuationPressure ?? 0}%`;
+      contrastValue.textContent = `${result.emotionalContrast ?? 0}%`;
+
+      meterFill.style.width = `${clamp(result.score ?? 0, 0, 100)}%`;
+      meterFill.style.background = applyMeterColor(Number(result.rawPolarity ?? 0));
+
+      const chips = [];
+      if ((result.pos ?? 0) > 0) chips.push(`Позитив ${result.pos}`);
+      if ((result.neg ?? 0) > 0) chips.push(`Негатив ${result.neg}`);
+      if ((result.intensity ?? 0) > 0) chips.push(`Интенсивность ${Math.round(result.intensity)}%`);
+      if ((result.confidence ?? 0) > 0) chips.push(`Уверенность ${Math.round(result.confidence)}%`);
+      if ((result.lexicalDensity ?? 0) > 0) chips.push(`Плотность ${Math.round(result.lexicalDensity)}%`);
+
+      const keywords = Array.isArray(result.keywords) ? result.keywords : [];
+      const allChips = [...chips, ...keywords.map(k => `# ${k}`)].slice(0, 8);
+      keywordsEl.innerHTML = allChips.map(c => `<span class="chip">${c}</span>`).join('');
+    }
+
+    async function renderAnalysis() {
+      const text = textInput.value.trim();
+      if (!text) return;
+
+      analyzeBtn.classList.add('loading');
+      analyzeBtn.disabled = true;
+      analyzeBtn.textContent = 'Анализ...';
+
+      try {
+        const response = await fetch('http://127.0.0.1:8000/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Ошибка сервера');
+        }
+
+        const result = await response.json();
+        updateFromResult(result);
+        resultsArea.classList.remove('hidden');
+        buildCharts(result);
+        resultsArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        console.error(error);
+        alert('Не удалось выполнить анализ. Проверь, что backend запущен на http://127.0.0.1:8000 и CORS включён.');
+      } finally {
+        analyzeBtn.classList.remove('loading');
+        analyzeBtn.textContent = 'Анализировать';
+        toggleAnalyzeButton();
+      }
+    }
+
+    textInput.addEventListener('input', toggleAnalyzeButton);
+    analyzeBtn.addEventListener('click', renderAnalysis);
+
+    clearBtn.addEventListener('click', () => {
+      textInput.value = '';
+      toggleAnalyzeButton();
+      resetUI();
+      textInput.focus();
+    });
+
+    demoBtn.addEventListener('click', () => {
+      demoMenu.classList.toggle('hidden');
+    });
+
+    document.querySelectorAll('.demo-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.demo;
+        textInput.value = demoTexts[key] || '';
+        demoMenu.classList.add('hidden');
+        toggleAnalyzeButton();
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      const wrap = document.getElementById('demoPickerWrap');
+      if (wrap && !wrap.contains(e.target)) demoMenu.classList.add('hidden');
+    });
+
+    toggleAnalyzeButton();
+    resetUI();
+  </script>
+</body>
+</html>
